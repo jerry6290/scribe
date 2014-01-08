@@ -171,10 +171,12 @@ void HdfsFile::listImpl(const std::string& path,
       hdfsFreeFileInfo(pHdfsFileInfo, numEntries);
     // A NULL indicates error
     } else {
-      throw std::runtime_error("hdfsListDirectory call failed");
+    	//comment to support cdh4.3 by jerry
+      //throw std::runtime_error("hdfsListDirectory call failed");
     }
   } else if (value == -1) {
-    throw std::runtime_error("hdfsExists call failed");
+    //comment to support cdh4.3 by jerry
+    //throw std::runtime_error("hdfsExists call failed");
   }
 }
 
@@ -193,9 +195,9 @@ bool HdfsFile::createDirectory(std::string path) {
 }
 
 /**
- * HDFS currently does not support symlinks. So we create a
- * normal file and write the symlink data into it
- */
+* HDFS currently does not support symlinks. So we create a
+* normal file and write the symlink data into it
+*/
 bool HdfsFile::createSymlink(std::string oldpath, std::string newpath) {
   LOG_OPER("[hdfs] Creating symlink oldpath %s newpath %s",
            oldpath.c_str(), newpath.c_str());
@@ -214,19 +216,19 @@ bool HdfsFile::createSymlink(std::string oldpath, std::string newpath) {
 }
 
 /**
- * If the URI is specified of the form
- * hdfs://server::port/path, then connect to the
- * specified cluster
- */
+* If the URI is specified of the form
+* hdfs://server::port/path, then connect to the
+* specified cluster
+*/
 hdfsFS HdfsFile::connectToPath(const char* uri) {
   const char proto[] = "hdfs://";
- 
+
   if (strncmp(proto, uri, strlen(proto)) != 0) {
     // uri doesn't start with hdfs:// -> use default:0, which is special
     // to libhdfs.
-    return hdfsConnectNewInstance("default", 0);
+    return hdfsConnect("default", 0);
   }
- 
+
   // Skip the hdfs:// part.
   uri += strlen(proto);
   // Find the next colon.
@@ -236,7 +238,7 @@ hdfsFS HdfsFile::connectToPath(const char* uri) {
     LOG_OPER("[hdfs] Missing port specification: \"%s\"", uri);
     return NULL;
   }
- 
+
   char* endptr = NULL;
   const long port = strtol(colon + 1, &endptr, 10);
   if (port < 0) {
@@ -246,14 +248,14 @@ hdfsFS HdfsFile::connectToPath(const char* uri) {
     LOG_OPER("[hdfs] Invalid port specification (out of range): \"%s\"", uri);
     return NULL;
   }
- 
+
   char* const host = (char*) malloc(colon - uri + 1);
   memcpy((char*) host, uri, colon - uri);
   host[colon - uri] = '\0';
- 
-  LOG_OPER("[hdfs] Before hdfsConnectNewInstance(%s, %li)", host, port);
-  hdfsFS fs = hdfsConnectNewInstance(host, port);
-  LOG_OPER("[hdfs] After hdfsConnectNewInstance");
+
+  LOG_OPER("[hdfs] Before hdfsConnect(%s, %li)", host, port);
+  hdfsFS fs = hdfsConnect(host, port);
+  LOG_OPER("[hdfs] After hdfsConnect");
   free(host);
   return fs;
 }
