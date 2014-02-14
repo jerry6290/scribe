@@ -418,6 +418,14 @@ string FileStoreBase::makeFullFilename(int suffix, struct tm* creation_time,
   if (use_full_path) {
     filename << filePath << '/';
   }
+  
+  if (rollPeriod != ROLL_NEVER) {
+    //if roll period,roll dictory by date format:'yyyy-MM-dd'
+    filename << creation_time->tm_year + 1900  << '-'
+             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
+             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
+
+  }
   filename << makeBaseFilename(creation_time);
   filename << '_' << setw(5) << setfill('0') << suffix;
 
@@ -443,21 +451,49 @@ string FileStoreBase::makeFullSymlink() {
 string FileStoreBase::makeBaseFilename(struct tm* creation_time) {
   ostringstream filename;
   
-  if (rollPeriod != ROLL_NEVER) {
-    //if roll period,roll dictory by date format:'yyyy-MM-dd'
-    filename << creation_time->tm_year + 1900  << '-'
-             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
-             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
-
-  }
   filename  << baseFileName;
   return filename.str();
 }
 
 // returns the suffix of the newest file matching base_filename
+int FileStoreBase::findNewestFile(struct tm* creation_time,const string& base_filename) {
+
+  ostringstream _filePath;
+  _filePath << filePath;
+  if (rollPeriod != ROLL_NEVER) {
+    //if roll period,roll dictory by date format:'yyyy-MM-dd'
+    _filePath << '/' << creation_time->tm_year + 1900  << '-'
+             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
+             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
+
+  }
+  std::vector<std::string> files = FileInterface::list(_filePath.str(), fsType);
+
+  int max_suffix = -1;
+  std::string retval;
+  for (std::vector<std::string>::iterator iter = files.begin();
+       iter != files.end();
+       ++iter) {
+
+    int suffix = getFileSuffix(*iter, base_filename);
+    if (suffix > max_suffix) {
+      max_suffix = suffix;
+    }
+  }
+  return max_suffix;
+}
 int FileStoreBase::findNewestFile(const string& base_filename) {
 
-  std::vector<std::string> files = FileInterface::list(filePath, fsType);
+  ostringstream _filePath;
+  _filePath << filePath;
+  if (rollPeriod != ROLL_NEVER) {
+    //if roll period,roll dictory by date format:'yyyy-MM-dd'
+    _filePath << '/' << creation_time->tm_year + 1900  << '-'
+             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
+             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
+
+  }
+  std::vector<std::string> files = FileInterface::list(_filePath.str(), fsType);
 
   int max_suffix = -1;
   std::string retval;
@@ -474,8 +510,42 @@ int FileStoreBase::findNewestFile(const string& base_filename) {
 }
 
 int FileStoreBase::findOldestFile(const string& base_filename) {
+  ostringstream _filePath;
+  _filePath << filePath;
+  if (rollPeriod != ROLL_NEVER) {
+    //if roll period,roll dictory by date format:'yyyy-MM-dd'
+    _filePath << '/' << creation_time->tm_year + 1900  << '-'
+             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
+             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
 
-  std::vector<std::string> files = FileInterface::list(filePath, fsType);
+  }
+  std::vector<std::string> files = FileInterface::list(_filePath.str(), fsType);
+
+  int min_suffix = -1;
+  std::string retval;
+  for (std::vector<std::string>::iterator iter = files.begin();
+       iter != files.end();
+       ++iter) {
+
+    int suffix = getFileSuffix(*iter, base_filename);
+    if (suffix >= 0 &&
+        (min_suffix == -1 || suffix < min_suffix)) {
+      min_suffix = suffix;
+    }
+  }
+  return min_suffix;
+}
+int FileStoreBase::findOldestFile(struct tm* creation_time,const string& base_filename) {
+  ostringstream _filePath;
+  _filePath << filePath;
+  if (rollPeriod != ROLL_NEVER) {
+    //if roll period,roll dictory by date format:'yyyy-MM-dd'
+    _filePath << '/' << creation_time->tm_year + 1900  << '-'
+             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
+             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
+
+  }
+  std::vector<std::string> files = FileInterface::list(_filePath.str(), fsType);
 
   int min_suffix = -1;
   std::string retval;
@@ -644,7 +714,7 @@ bool FileStore::openInternal(bool incrementFilename, struct tm* current_time) {
   }
 
   try {
-    int suffix = findNewestFile(makeBaseFilename(current_time));
+    int suffix = findNewestFile(current_time,makeBaseFilename(current_time));
 
     if (incrementFilename) {
       ++suffix;
@@ -913,7 +983,7 @@ bool FileStore::writeMessages(boost::shared_ptr<logentry_vector_t> messages,
 // currently gets invoked from within a bufferstore
 void FileStore::deleteOldest(struct tm* now) {
 
-  int index = findOldestFile(makeBaseFilename(now));
+  int index = findOldestFile(now,makeBaseFilename(now));
   if (index < 0) {
     return;
   }
@@ -930,7 +1000,7 @@ void FileStore::deleteOldest(struct tm* now) {
 bool FileStore::replaceOldest(boost::shared_ptr<logentry_vector_t> messages,
                               struct tm* now) {
   string base_name = makeBaseFilename(now);
-  int index = findOldestFile(base_name);
+  int index = findOldestFile(now,base_name);
   if (index < 0) {
     LOG_OPER("[%s] Could not find files <%s>", categoryHandled.c_str(), base_name.c_str());
     return false;
@@ -967,7 +1037,7 @@ bool FileStore::readOldest(/*out*/ boost::shared_ptr<logentry_vector_t> messages
 
   long loss;
 
-  int index = findOldestFile(makeBaseFilename(now));
+  int index = findOldestFile(now,makeBaseFilename(now));
   if (index < 0) {
     // This isn't an error. It's legit to call readOldest when there aren't any
     // files left, in which case the call succeeds but returns messages empty.
@@ -1145,7 +1215,7 @@ bool ThriftFileStore::openInternal(bool incrementFilename, struct tm* current_ti
   }
   int suffix;
   try {
-    suffix = findNewestFile(makeBaseFilename(current_time));
+    suffix = findNewestFile(current_time,makeBaseFilename(current_time));
   } catch(const std::exception& e) {
     LOG_OPER("Exception < %s > in ThriftFileStore::openInternal",
       e.what());
