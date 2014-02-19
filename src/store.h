@@ -142,8 +142,6 @@ class FileStoreBase : public Store {
                                bool use_full_path = true);
   std::string makeBaseSymlink();
   std::string makeFullSymlink();
-  int  findOldestFile(const std::string& base_filename);
-  int  findNewestFile(const std::string& base_filename);
   int  findOldestFile(struct tm* creation_time,const std::string& base_filename);
   int  findNewestFile(struct tm* creation_time,const std::string& base_filename);
   int  getFileSuffix(const std::string& filename,

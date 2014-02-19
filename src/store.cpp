@@ -482,59 +482,7 @@ int FileStoreBase::findNewestFile(struct tm* creation_time,const string& base_fi
   }
   return max_suffix;
 }
-int FileStoreBase::findNewestFile(const string& base_filename) {
 
-  ostringstream _filePath;
-  _filePath << filePath;
-  if (rollPeriod != ROLL_NEVER) {
-    //if roll period,roll dictory by date format:'yyyy-MM-dd'
-    _filePath << '/' << creation_time->tm_year + 1900  << '-'
-             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
-             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
-
-  }
-  std::vector<std::string> files = FileInterface::list(_filePath.str(), fsType);
-
-  int max_suffix = -1;
-  std::string retval;
-  for (std::vector<std::string>::iterator iter = files.begin();
-       iter != files.end();
-       ++iter) {
-
-    int suffix = getFileSuffix(*iter, base_filename);
-    if (suffix > max_suffix) {
-      max_suffix = suffix;
-    }
-  }
-  return max_suffix;
-}
-
-int FileStoreBase::findOldestFile(const string& base_filename) {
-  ostringstream _filePath;
-  _filePath << filePath;
-  if (rollPeriod != ROLL_NEVER) {
-    //if roll period,roll dictory by date format:'yyyy-MM-dd'
-    _filePath << '/' << creation_time->tm_year + 1900  << '-'
-             << setw(2) << setfill('0') << creation_time->tm_mon + 1 << '-'
-             << setw(2) << setfill('0')  << creation_time->tm_mday << '/';
-
-  }
-  std::vector<std::string> files = FileInterface::list(_filePath.str(), fsType);
-
-  int min_suffix = -1;
-  std::string retval;
-  for (std::vector<std::string>::iterator iter = files.begin();
-       iter != files.end();
-       ++iter) {
-
-    int suffix = getFileSuffix(*iter, base_filename);
-    if (suffix >= 0 &&
-        (min_suffix == -1 || suffix < min_suffix)) {
-      min_suffix = suffix;
-    }
-  }
-  return min_suffix;
-}
 int FileStoreBase::findOldestFile(struct tm* creation_time,const string& base_filename) {
   ostringstream _filePath;
   _filePath << filePath;
